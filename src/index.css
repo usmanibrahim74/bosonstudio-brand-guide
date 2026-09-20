@@ -1,0 +1,327 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+/* ─── Brand tokens (single source of truth; App.tsx reads the same values) ── */
+@theme {
+  --color-night: #050e12;
+  --color-forest: #0b332c;
+  --color-pine: #14473a;
+  --color-green: #00dc5f;
+  --color-teal: #2ee6c8;
+  --color-violet: #9a6bff;
+  --color-lime: #d8eda0;
+  --color-mist: #eef3f1;
+
+  /* Semantic, theme-aware. Values live on :root below. */
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--ink-muted);
+  --color-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-3: var(--accent-3);
+
+  --font-sans: 'Sora', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --ease-reveal: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* ─── Theme values ────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+  --surface: #050e12;
+  --surface-2: rgba(11, 51, 44, 0.22);
+  --ink: #eef3f1;
+  --ink-muted: rgba(238, 243, 241, 0.62);
+  --ink-faint: rgba(238, 243, 241, 0.42);
+  --line: rgba(238, 243, 241, 0.1);
+  --accent: #00dc5f;
+  --accent-2: #2ee6c8;
+  --accent-3: #9a6bff;
+  --ribbon-blend: screen;
+  --ribbon-scale: 0.85;
+  --lattice-dot: rgba(238, 243, 241, 0.16);
+  --grain-op: 0.11;
+  --band-1: rgba(0, 220, 95, 0.38);
+  --band-2: rgba(150, 236, 130, 0.24);
+  --band-3: rgba(0, 220, 95, 0.16);
+}
+
+/* Light: the same system at dawn. Ink accents are darker so text passes 4.5:1. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --surface: #eef3f1;
+  --surface-2: #ffffff;
+  --ink: #0b332c;
+  --ink-muted: #3a564f;
+  --ink-faint: #4d6a64;
+  --line: rgba(11, 51, 44, 0.12);
+  --accent: #007a34;
+  --accent-2: #0a7568;
+  --accent-3: #5b3fc4;
+  --ribbon-blend: multiply;
+  --ribbon-scale: 1;
+  --lattice-dot: rgba(11, 51, 44, 0.14);
+  --grain-op: 0.07;
+  --band-1: rgba(0, 220, 95, 0.22);
+  --band-2: rgba(150, 236, 130, 0.2);
+  --band-3: rgba(0, 220, 95, 0.12);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --surface: #eef3f1;
+    --surface-2: #ffffff;
+    --ink: #0b332c;
+    --ink-muted: #3a564f;
+    --ink-faint: #4d6a64;
+    --line: rgba(11, 51, 44, 0.12);
+    --accent: #007a34;
+    --accent-2: #0a7568;
+    --accent-3: #5b3fc4;
+    --ribbon-blend: multiply;
+    --ribbon-scale: 1;
+    --lattice-dot: rgba(11, 51, 44, 0.14);
+    --grain-op: 0.07;
+    --band-1: rgba(0, 220, 95, 0.22);
+    --band-2: rgba(150, 236, 130, 0.2);
+    --band-3: rgba(0, 220, 95, 0.12);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--surface);
+  color: var(--ink);
+  transition: background-color 300ms var(--ease-reveal), color 300ms var(--ease-reveal);
+}
+
+::selection {
+  background: rgba(0, 220, 95, 0.35);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink) 22%, transparent); border-radius: 3px; }
+
+/* ─── Field lattice: the quantum-field texture ────────────────────────────── */
+.lattice {
+  background-image: radial-gradient(var(--lattice-dot) 1px, transparent 1.2px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 20%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 20%, transparent 100%);
+}
+
+/* ─── Film grain, keeps the blurred aurora from looking like a vector mesh ── */
+.grain {
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  opacity: var(--grain-op);
+  mix-blend-mode: overlay;
+}
+
+/* ─── Aurora curtains ─────────────────────────────────────────────────────── */
+.aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.ribbon {
+  position: absolute;
+  top: -30%;
+  height: 160%;
+  width: 34%;
+  filter: blur(54px);
+  mix-blend-mode: var(--ribbon-blend);
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+  animation: drift var(--dur, 22s) ease-in-out infinite alternate;
+  animation-delay: var(--delay, 0s);
+  opacity: calc(var(--op, 0.8) * var(--ribbon-scale));
+}
+
+.ribbon-green {
+  left: 36%;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 220, 95, 0.72) 30%, rgba(0, 220, 95, 0.34) 62%, transparent 100%);
+  transform: rotate(-14deg) skewX(-18deg);
+}
+
+.ribbon-lime {
+  left: 62%;
+  width: 26%;
+  background: linear-gradient(180deg, transparent 0%, rgba(150, 236, 130, 0.58) 28%, rgba(0, 220, 95, 0.26) 60%, transparent 100%);
+  transform: rotate(-10deg) skewX(-24deg);
+}
+
+.ribbon-far {
+  left: 78%;
+  width: 18%;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 220, 95, 0.40) 30%, rgba(150, 236, 130, 0.18) 60%, transparent 100%);
+  transform: rotate(-8deg) skewX(-28deg);
+}
+
+.ribbon-low {
+  left: 8%;
+  top: 10%;
+  width: 40%;
+  height: 120%;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 220, 95, 0.42) 45%, transparent 100%);
+  transform: rotate(-18deg) skewX(-10deg);
+}
+
+@keyframes drift {
+  0%   { transform: translate3d(0, 0, 0) rotate(-14deg) skewX(-18deg) scaleX(1); }
+  50%  { transform: translate3d(-4%, 2%, 0) rotate(-11deg) skewX(-22deg) scaleX(1.18); }
+  100% { transform: translate3d(3%, -1%, 0) rotate(-16deg) skewX(-14deg) scaleX(0.9); }
+}
+
+/* Curtain wall used in the "Field & light" demo and the atmospheres */
+.aurora-band {
+  background:
+    radial-gradient(60% 90% at 18% 0%, var(--band-1), transparent 60%),
+    radial-gradient(50% 80% at 62% 8%, var(--band-2), transparent 62%),
+    radial-gradient(38% 60% at 90% 40%, var(--band-3), transparent 64%),
+    var(--surface);
+}
+
+/* ─── Hero reveal: one orchestrated moment on load ────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: reveal 900ms var(--ease-reveal) forwards;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes reveal {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero-aurora {
+  animation: rise 2400ms var(--ease-reveal) 200ms both;
+}
+
+@keyframes rise {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* In a hero the ribbons sway sideways and breathe. Slow enough to feel, fast enough to notice. */
+.hero-aurora .ribbon {
+  animation: sway var(--dur, 15s) ease-in-out infinite alternate;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes sway {
+  0% {
+    transform: translate3d(-7%, 0, 0) rotate(-17deg) skewX(-12deg) scaleX(0.82);
+    opacity: calc(var(--op, 0.8) * var(--ribbon-scale) * 0.55);
+  }
+  35% {
+    transform: translate3d(3%, 2%, 0) rotate(-12deg) skewX(-24deg) scaleX(1.28);
+    opacity: calc(var(--op, 0.8) * var(--ribbon-scale));
+  }
+  70% {
+    transform: translate3d(9%, -1.5%, 0) rotate(-14deg) skewX(-18deg) scaleX(1.0);
+    opacity: calc(var(--op, 0.8) * var(--ribbon-scale) * 0.72);
+  }
+  100% {
+    transform: translate3d(14%, 1%, 0) rotate(-9deg) skewX(-28deg) scaleX(1.36);
+    opacity: calc(var(--op, 0.8) * var(--ribbon-scale) * 0.95);
+  }
+}
+
+/* ─── Mark emission: a response to a person's action ─────────────────────── */
+.emit {
+  transition: filter 220ms ease-out, transform 220ms ease-out;
+}
+.emit:hover,
+.emit:focus-visible {
+  filter: drop-shadow(0 0 14px rgba(0, 220, 95, 0.75)) drop-shadow(0 0 40px rgba(46, 230, 200, 0.35));
+  transform: scale(1.04);
+}
+:root[data-theme='light'] .emit:hover,
+:root[data-theme='light'] .emit:focus-visible {
+  filter: none;
+  transform: translateY(-2px) scale(1.03);
+}
+/* A forced-Night element (link preview, app icon) keeps its glow in light mode */
+.force-night .emit:hover,
+.force-night .emit:focus-visible {
+  filter: drop-shadow(0 0 14px rgba(0, 220, 95, 0.75)) drop-shadow(0 0 40px rgba(46, 230, 200, 0.35));
+  transform: scale(1.04);
+}
+
+/* Elements that stay on Night whatever the theme.
+   Tailwind resolves --color-* on :root, so those are pinned here as well. */
+.force-night {
+  --surface: #050e12;
+  --surface-2: rgba(11, 51, 44, 0.22);
+  --ink: #eef3f1;
+  --ink-muted: rgba(238, 243, 241, 0.62);
+  --ink-faint: rgba(238, 243, 241, 0.42);
+  --line: rgba(238, 243, 241, 0.1);
+  --accent: #00dc5f;
+  --accent-2: #2ee6c8;
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--ink-muted);
+  --color-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --ribbon-blend: screen;
+  --ribbon-scale: 1;
+  --lattice-dot: rgba(238, 243, 241, 0.16);
+  --grain-op: 0.11;
+  color-scheme: dark;
+}
+
+/* ─── Copy affordance ─────────────────────────────────────────────────────── */
+.copyable {
+  cursor: copy;
+}
+
+/* ─── Small UI ────────────────────────────────────────────────────────────── */
+.hairline {
+  border-color: var(--line);
+}
+
+.nav-links {
+  scrollbar-width: none;
+}
+.nav-links::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Reduced motion: atmosphere becomes still, nothing is hidden ─────────── */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .ribbon, .hero-aurora .ribbon { animation: none; opacity: calc(var(--op, 0.8) * var(--ribbon-scale)); }
+  .hero-aurora { animation: none; opacity: 1; }
+  .reveal { animation: none; opacity: 1; transform: none; }
+  .emit { transition: none; }
+}
