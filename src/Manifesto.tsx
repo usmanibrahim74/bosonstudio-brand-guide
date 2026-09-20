@@ -25,8 +25,10 @@ const VH_PER_STEP = 62
 
 // ─── Field rain: few drops, slow, right side only ─────────────────────────────
 
-function FieldRain() {
+function FieldRain({ intensity }: { intensity: number }) {
   const ref = useRef<HTMLCanvasElement>(null)
+  const level = useRef(intensity)
+  level.current = intensity
 
   useEffect(() => {
     const canvas = ref.current
@@ -60,7 +62,7 @@ function FieldRain() {
       cols = Math.ceil(w / CELL); rows = Math.ceil(h / CELL)
       const narrow = w < 700
       firstCol = Math.floor(cols * (narrow ? 0.74 : 0.46))   // keep the reading side clear
-      const count = narrow ? 2 : Math.max(3, Math.floor((cols - firstCol) / 6))
+      const count = narrow ? 3 : Math.max(4, Math.floor((cols - firstCol) / 4))
       drops = Array.from({ length: count }, () => spawn(true))
     }
 
@@ -69,7 +71,11 @@ function FieldRain() {
       ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
       ctx.font = FONT
       ctx.textBaseline = 'top'
-      for (let i = 0; i < drops.length; i++) {
+      const lv = level.current
+      const gain = 0.55 + 0.75 * lv                      // trail brightness grows with the sequence
+      // Later drops only join as the field brightens.
+      const active = Math.max(2, Math.round(drops.length * (0.45 + 0.55 * lv)))
+      for (let i = 0; i < active; i++) {
         const d = drops[i]
         const head = Math.floor(d.y)
         for (let k = 0; k < d.len; k++) {
@@ -78,7 +84,7 @@ function FieldRain() {
           const fade = 1 - k / d.len
           // Glyphs are stable per cell; only the head flickers.
           const g = k === 0 ? glyph(now * 0.01 + d.seed) : glyph(r * 7.13 + d.col * 3.7 + d.seed)
-          ctx.fillStyle = k === 0 ? 'rgba(216, 237, 160, 0.8)' : `rgba(0, 220, 95, ${(0.42 * fade * fade).toFixed(3)})`
+          ctx.fillStyle = k === 0 ? `rgba(216, 237, 160, ${(0.6 + 0.35 * lv).toFixed(2)})` : `rgba(0, 220, 95, ${(0.5 * gain * fade * fade).toFixed(3)})`
           ctx.fillText(g, d.col * CELL + 5, r * CELL + 4)
         }
       }
@@ -90,8 +96,9 @@ function FieldRain() {
       if (now - last < 1000 / 20) return
       const dt = Math.min(0.1, (now - last) / 1000)
       last = now
+      const rate = 0.8 + 0.6 * level.current              // the field moves a little faster as it brightens
       for (let i = 0; i < drops.length; i++) {
-        drops[i].y += drops[i].speed * dt
+        drops[i].y += drops[i].speed * rate * dt
         if (Math.floor(drops[i].y) - drops[i].len > rows) drops[i] = spawn()
       }
       paint(now)
@@ -194,6 +201,8 @@ export function Manifesto({ n }: { n: string }) {
   const ref = useRef<HTMLElement>(null)
   const p = useProgress(ref)
   const step = Math.round(p)
+  const t = p / (STEPS - 1)                                      // 0 at the first line, 1 at the last
+  const finale = smooth((0.8 - Math.abs(p - (STEPS - 1))) / 0.6) // 1 while the last line is in focus
   const [reduced, setReduced] = useState(false)
   useEffect(() => {
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -216,8 +225,17 @@ export function Manifesto({ n }: { n: string }) {
       </div>
 
       <div className="sticky top-0 h-screen overflow-hidden">
-        <FieldRain />
-        <div className="lattice absolute inset-0" />
+        {/* Field glow: grows with the sequence, blooms behind the final line */}
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{
+          opacity: 0.35 + 0.65 * t,
+          background: 'radial-gradient(55% 75% at 80% 45%, rgba(0,220,95,0.26), transparent 65%), radial-gradient(35% 50% at 60% 20%, rgba(150,236,130,0.13), transparent 70%)',
+        }} />
+        <div className="absolute inset-0 pointer-events-none" aria-hidden="true" style={{
+          opacity: finale,
+          background: 'radial-gradient(45% 55% at 42% 52%, rgba(0,220,95,0.2), transparent 70%)',
+        }} />
+        <FieldRain intensity={t} />
+        <div className="lattice absolute inset-0" style={{ '--lattice-dot': `rgba(0, 220, 95, ${(0.12 + 0.16 * t).toFixed(3)})` } as React.CSSProperties} />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,var(--surface)_0%,var(--surface)_30%,transparent_62%)] opacity-90" />
         <div className="grain absolute inset-0" />
 
