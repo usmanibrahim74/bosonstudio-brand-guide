@@ -62,7 +62,7 @@ function FieldRain({ intensity }: { intensity: number }) {
       cols = Math.ceil(w / CELL); rows = Math.ceil(h / CELL)
       const narrow = w < 700
       firstCol = Math.floor(cols * (narrow ? 0.74 : 0.46))   // keep the reading side clear
-      const count = narrow ? 3 : Math.max(4, Math.floor((cols - firstCol) / 4))
+      const count = narrow ? 4 : Math.max(5, Math.floor((cols - firstCol) / 3))
       drops = Array.from({ length: count }, () => spawn(true))
     }
 
@@ -74,7 +74,7 @@ function FieldRain({ intensity }: { intensity: number }) {
       const lv = level.current
       const gain = 0.55 + 0.75 * lv                      // trail brightness grows with the sequence
       // Later drops only join as the field brightens.
-      const active = Math.max(2, Math.round(drops.length * (0.45 + 0.55 * lv)))
+      const active = Math.max(3, Math.round(drops.length * (0.6 + 0.4 * lv)))
       for (let i = 0; i < active; i++) {
         const d = drops[i]
         const head = Math.floor(d.y)
