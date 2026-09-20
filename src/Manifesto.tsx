@@ -112,10 +112,12 @@ function FieldRain() {
   return <canvas ref={ref} className="absolute inset-0 w-full h-full" aria-hidden="true" />
 }
 
-// ─── Scroll progress → active step ────────────────────────────────────────────
+// ─── Scroll progress, continuous ──────────────────────────────────────────────
+// p runs from 0 (first statement in focus) to STEPS - 1 (final line in focus)
+// and follows the scrollbar directly, so every pixel of scroll moves the words.
 
-function useStep(sectionRef: React.RefObject<HTMLElement | null>) {
-  const [step, setStep] = useState(0)
+function useProgress(sectionRef: React.RefObject<HTMLElement | null>) {
+  const [p, setP] = useState(0)
   useEffect(() => {
     let raf = 0
     const update = () => {
@@ -124,8 +126,9 @@ function useStep(sectionRef: React.RefObject<HTMLElement | null>) {
       if (!el) return
       const rect = el.getBoundingClientRect()
       const travel = el.offsetHeight - window.innerHeight
-      const p = travel > 0 ? Math.min(1, Math.max(0, -rect.top / travel)) : 0
-      setStep(Math.min(STEPS - 1, Math.floor(p * STEPS)))
+      const t = travel > 0 ? Math.min(1, Math.max(0, -rect.top / travel)) : 0
+      // The last line holds for the final stretch instead of sliding away.
+      setP(Math.min(STEPS - 1, t * (STEPS - 1 + 0.45)))
     }
     const onScroll = () => { if (!raf) raf = requestAnimationFrame(update) }
     update()
@@ -133,23 +136,55 @@ function useStep(sectionRef: React.RefObject<HTMLElement | null>) {
     window.addEventListener('resize', onScroll)
     return () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); cancelAnimationFrame(raf) }
   }, [sectionRef])
-  return step
+  return p
 }
 
-function Focus({ active, before, children }: { active: boolean; before: boolean; children: ReactNode }) {
+const smooth = (x: number) => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t) }
+
+/**
+ * One statement, positioned by how far it is from the focal plane (d = p - index).
+ * Each word has its own small offset, so a line comes into focus word by word
+ * from the start and leaves the same way, while the whole line drifts upward.
+ */
+function Line({ d, children, reduced }: { d: number; children: ReactNode; reduced: boolean }) {
+  const near = Math.abs(d) < 1
+  if (!near) return null
+  if (reduced) {
+    return Math.abs(d) < 0.5 ? <div className="absolute inset-x-0 top-1/2 -translate-y-1/2">{children}</div> : null
+  }
   return (
     <div
-      className="absolute inset-x-0 top-1/2 -translate-y-1/2 transition-[opacity,filter,transform] duration-700 ease-[cubic-bezier(.2,.8,.2,1)] motion-reduce:transition-none"
-      style={{
-        opacity: active ? 1 : 0,
-        filter: active ? 'blur(0px)' : 'blur(10px)',
-        transform: `translateY(calc(-50% + ${active ? 0 : before ? -16 : 16}px))`,
-        pointerEvents: active ? 'auto' : 'none',
-      }}
-      aria-hidden={!active}
+      className="absolute inset-x-0 top-1/2 will-change-transform"
+      style={{ transform: `translateY(calc(-50% + ${(-d * 72).toFixed(1)}px))`, pointerEvents: Math.abs(d) < 0.5 ? 'auto' : 'none' }}
+      aria-hidden={Math.abs(d) >= 0.5}
     >
       {children}
     </div>
+  )
+}
+
+function Words({ text, d, className }: { text: string; d: number; className: string }) {
+  const words = text.split(' ')
+  const n = words.length
+  return (
+    <p className={`m-0 ${className}`}>
+      {words.map((w, k) => {
+        // Words are staggered across a third of a step; later words trail the first.
+        const offset = (k / Math.max(1, n - 1)) * 0.34 - 0.17
+        const dist = Math.abs(d - offset)                 // distance from this word's focal point
+        const v = smooth((0.62 - dist) / 0.42)            // crisp within 0.2 of focus, gone at 0.62
+        return (
+          <span key={k} className="inline-block whitespace-pre will-change-[opacity,filter,transform]"
+            style={{
+              opacity: v,
+              filter: v > 0.98 ? 'none' : `blur(${((1 - v) * 9).toFixed(2)}px)`,
+              transform: `translateY(${((d - offset) * -22).toFixed(1)}px)`,
+            }}>
+            {w}{k < n - 1 ? ' ' : ''}
+          </span>
+        )
+      })}
+    </p>
   )
 }
 
@@ -157,7 +192,15 @@ function Focus({ active, before, children }: { active: boolean; before: boolean;
 
 export function Manifesto({ n }: { n: string }) {
   const ref = useRef<HTMLElement>(null)
-  const step = useStep(ref)
+  const p = useProgress(ref)
+  const step = Math.round(p)
+  const [reduced, setReduced] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const sync = () => setReduced(mq.matches)
+    sync(); mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
 
   return (
     <section
@@ -195,21 +238,31 @@ export function Manifesto({ n }: { n: string }) {
             {/* Stage: one statement at a time */}
             <div className="col-start-1 row-start-1 md:col-start-3 md:col-span-10 relative h-full">
               {STATEMENTS.map((s, i) => (
-                <Focus key={s.text} active={step === i} before={i < step}>
-                  <p className={`m-0 max-w-[20ch] text-[32px] md:text-[56px] font-medium leading-[1.06] tracking-[-0.03em] ${s.quiet ? 'text-ink/70' : 'text-ink'}`}>
-                    {s.text}
-                  </p>
-                </Focus>
+                <Line key={s.text} d={p - i} reduced={reduced}>
+                  <Words text={s.text} d={p - i}
+                    className={`max-w-[20ch] text-[32px] md:text-[56px] font-medium leading-[1.06] tracking-[-0.03em] ${s.quiet ? 'text-ink/70' : 'text-ink'}`} />
+                </Line>
               ))}
-              <Focus active={step === STEPS - 1} before={false}>
-                <div className="flex items-center gap-5 md:gap-8">
-                  <svg viewBox="13 5 216 217" fill="none" className="emit shrink-0 w-12 h-12 md:w-20 md:h-20" aria-hidden="true">
-                    <path d={MARK_PATH} fill="#00DC5F" />
-                  </svg>
-                  <h2 className="m-0 text-[40px] md:text-[84px] font-semibold leading-[0.96] tracking-[-0.04em]">{FINAL}</h2>
-                </div>
-                <div className="mt-8 md:mt-10 font-mono text-[11.5px] text-faint">125.1 GeV. 557.7 nm. 2012.</div>
-              </Focus>
+              <Line d={p - (STEPS - 1)} reduced={reduced}>
+                {(() => {
+                  const d = p - (STEPS - 1)
+                  const v = reduced ? 1 : smooth((0.7 - Math.abs(d)) / 0.5)
+                  return (
+                    <>
+                      <div className="flex items-center gap-5 md:gap-8">
+                        <svg viewBox="13 5 216 217" fill="none" className="emit shrink-0 w-12 h-12 md:w-20 md:h-20" aria-hidden="true"
+                          style={{ opacity: v, transform: `scale(${(0.7 + 0.3 * v).toFixed(3)}) rotate(${((1 - v) * -40).toFixed(1)}deg)` }}>
+                          <path d={MARK_PATH} fill="#00DC5F" />
+                        </svg>
+                        <h2 className="m-0">
+                          <Words text={FINAL} d={d} className="text-[40px] md:text-[84px] font-semibold leading-[0.96] tracking-[-0.04em]" />
+                        </h2>
+                      </div>
+                      <div className="mt-8 md:mt-10 font-mono text-[11.5px] text-faint" style={{ opacity: smooth(v * 1.6 - 0.6) }}>125.1 GeV. 557.7 nm. 2012.</div>
+                    </>
+                  )
+                })()}
+              </Line>
             </div>
           </div>
         </div>
